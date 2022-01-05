@@ -755,9 +755,9 @@ KL(q(z)|p(z|x))&amp;=-ELBO+log(p(x))\\
 \]
 <h2><a id="derivation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Derivation</h2>
 \[\begin{align}
-KL(q(z)|p(z|x))&amp;=\int_{z}q(z)log(\frac{q(z)}{p(z|x)})dz\\
+KL(q(z)|p(z|x))&amp;=\int_{z}q(z)log\left(\frac{q(z)}{p(z|x)}\right)dz\\
 &amp;=\int_{z}q(z)log(q(z))dz-\int_{z}q(z)log(p(z|x))dz\\
-&amp;=E_{q}[log(q(z))]-E_{q}[log(\frac{p(x,z)}{p(x)})]\\
+&amp;=E_{q}[log(q(z))]-E_{q}[log\left(\frac{p(x,z)}{p(x)}\right)]\\
 &amp;=E_{q}[log(q(z))]-E_{q}[log(p(x,z))]+log(p(x))
 \end{align}
 \]
@@ -779,7 +779,7 @@ ELBO(q)&amp;=E_{q}[log(p(x,z))]-E_{q}[log(p(z))]\\
 <p>Then,</p>
 \[\begin{align}
 ELBO(q)&amp;=\int_{z_{j}}q_{j}(z_{j})log(\tilde{p}_{j}(x,z_{j}))dz_{j}-\int_{z_{j}}q_{j}(z_{j})dz_{j}+const\\
-&amp;=\int_{z_{j}}q_{j}(z_{j})log(\frac{\tilde{p}_{j}(x,z_{j})}{q_{j}(z_{j})})dz_{j}+const\\
+&amp;=\int_{z_{j}}q_{j}(z_{j})log\left(\frac{\tilde{p}_{j}(x,z_{j})}{q_{j}(z_{j})}\right)dz_{j}+const\\
 &amp;=-KL(q_{j}(z_{j})|\tilde{p}_{j}(x,z_{j}))+const
 \end{align}
 \]
@@ -789,4 +789,38 @@ q_{j}(z_{j})&amp;=\tilde{p}_{j}(x,z_{j})\\
 &amp;\propto exp\{E_{q_{-j}}[log(p(x,z))]\}
 \end{align}
 \]
+<h1><a id="approximate-gaussian-distribution" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Approximate Gaussian distribution</h1>
+<p>Consider a toy example, in which we are trying to approximate \(p(z)=\mathcal{N}(z|\mu,\Lambda^{-1})\) with \(q(z)=q_{1}(z)q_{2}(z)\).</p>
+\[\mu=
+\left(
+\begin{array}{cc}
+\mu_{1}\\
+\mu_{2}
+\end{array}
+\right),
+\Lambda=
+\left(
+\begin{array}{cc}
+\Lambda_{11} &amp; \Lambda_{12}\\
+\Lambda_{21} &amp; \Lambda_{22}
+\end{array}
+\right),
+\]
+<p>The closed form solution is:</p>
+\[\begin{align}
+q^{*}(z)&amp;=q^{*}_{1}(z_{1})q^{*}_{2}(z_{2})\\
+&amp;=\mathcal{N}(z_{1}|\mu_{1},\Lambda_{11}^{-1})\mathcal{N}(z_{2}|\mu_{2},\Lambda_{22}^{-1})
+\end{align}
+\]
+<h2><a id="derivation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Derivation</h2>
+\[\begin{align}
+log(q_{1}^{*}(z))&amp;=E_{z_{2}}[log(p(z))]+const\\
+&amp;=E_{z_{2}}\left[-\frac{1}{2}(x-\mu)^{T}\Lambda (x-\mu)\right]+const\\
+&amp;=E_{z_{2}}\left[-\frac{1}{2}(z_{1}-\mu_{11})^{2}\Lambda_{11}-(z_{1}-\mu_{1})\Lambda_{12}(z_{2}-\mu_{2})\right]+const\\
+&amp;=-\frac{1}{2}z_{1}^{2}\Lambda_{11}+z_{1}\mu_{1}\Lambda_{11}-z_{1}\Lambda_{12}(E[z_{2}]-\mu_{2})+const
+\end{align}
+\]
+<p>It can be seen that the above equation implies that \(q^{*}_{1}(z_{1})=\mathcal{N}(z_{1}|m_{1},\Lambda^{-1}_{11})\), where \(m_{1}=E[z_{1}]=\mu_{1}-\Lambda_{11}^{-1}\Lambda_{12}(E[z_{2}]-\mu_{2})\).</p>
+<p>Similarly, \(q^{*}_{2}(z_{2})=\mathcal{N}(z_{2}|m_{2},\Lambda^{-1}_{22})\), where \(m_{2}=E[z_{2}]=\mu_{2}-\Lambda_{22}^{-1}\Lambda_{21}(E[z_{1}]-\mu_{1})\).</p>
+<p>It can be seen that the solution is \(m_{1}=\mu_{1}\) and \(m_{2}=\mu_{2}\).</p>
 </div></body></html>
