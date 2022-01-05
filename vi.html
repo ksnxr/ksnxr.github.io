@@ -762,10 +762,31 @@ KL(q(z)|p(z|x))&amp;=\int_{z}q(z)log(\frac{q(z)}{p(z|x)})dz\\
 \end{align}
 \]
 <h2><a id="implication" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Implication</h2>
-<p>Maximize ELBO is equivalent to minimize \(KL(q(z)|p(z|x))\).</p>
+<p>Maximizing ELBO is equivalent to minimizing \(KL(q(z)|p(z|x))\).</p>
 <h1><a id="mean-field-variational-inference" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Mean field Variational Inference</h1>
 <p>Decompose \(p(z)\) into the products of \(n\) distributions, i.e. \(q(z)=\sum_{i=1}^{n}p_{i}(z)\). It is possible to find the best \(q(z)\) through iteratively optimizing each \(q_{i}(z)\).</p>
 \[q_{i}(z)=\frac{exp\{E_{q_{-j}}[log(p(x,z))]\}}{\int_{z_{j}}exp\{E_{q_{-j}}[log(p(x,z))]\}dz_{j}}
 \]
 <h2><a id="derivation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Derivation</h2>
+\[\begin{align}
+ELBO(q)&amp;=E_{q}[log(p(x,z))]-E_{q}[log(p(z))]\\
+&amp;=\int_{z}q(z)log(p(x,z))dz-(E_{q_{j}}[log(q_{j}(z_{j}))]+\sum_{i\neq j}E_{q_{i}}[log(q_{i}(z_{i}))])\\
+&amp;=\int_{z_{j}}q_{j}(z_{j})[\int_{z_{-j}}q_{-j}(z_{-j})log(p(x,z))dz_{-j}]dz_{j}-E_{q_{j}}[log(q_{j}(z_{j}))]+const\\
+&amp;=\int_{z_{j}}q_{j}(z_{j})E_{q_{-j}}[log(p(x,z))]dz_{j}-\int_{z_{j}}q_{j}(z_{j})log(q_{j}(z_{j}))dz_{j}+const
+\end{align}
+\]
+<p>Define a new distribution \(\tilde{p}_{j}\), such that \(log(\tilde{p}_{j}(x,z_{j}))=E_{q_{-j}}[log(p(x,z))]+const\).</p>
+<p>Then,</p>
+\[\begin{align}
+ELBO(q)&amp;=\int_{z_{j}}q_{j}(z_{j})log(\tilde{p}_{j}(x,z_{j}))dz_{j}-\int_{z_{j}}q_{j}(z_{j})dz_{j}+const\\
+&amp;=\int_{z_{j}}q_{j}(z_{j})log(\frac{\tilde{p}_{j}(x,z_{j})}{q_{j}(z_{j})})dz_{j}+const\\
+&amp;=-KL(q_{j}(z_{j})|\tilde{p}_{j}(x,z_{j}))+const
+\end{align}
+\]
+<p>In order for ELBO to be maximum,</p>
+\[\begin{align}
+q_{j}(z_{j})&amp;=\tilde{p}_{j}(x,z_{j})\\
+&amp;\propto exp\{E_{q_{-j}}[log(p(x,z))]\}
+\end{align}
+\]
 </div></body></html>
