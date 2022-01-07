@@ -823,4 +823,21 @@ log(q_{1}^{*}(z))&amp;=E_{z_{2}}[log(p(z))]+const\\
 <p>It can be seen that the above equation implies that \(q^{*}_{1}(z_{1})=\mathcal{N}(z_{1}|m_{1},\Lambda^{-1}_{11})\), where \(m_{1}=E[z_{1}]=\mu_{1}-\Lambda_{11}^{-1}\Lambda_{12}(E[z_{2}]-\mu_{2})\).</p>
 <p>Similarly, \(q^{*}_{2}(z_{2})=\mathcal{N}(z_{2}|m_{2},\Lambda^{-1}_{22})\), where \(m_{2}=E[z_{2}]=\mu_{2}-\Lambda_{22}^{-1}\Lambda_{21}(E[z_{1}]-\mu_{1})\).</p>
 <p>It can be seen that the solution is \(m_{1}=\mu_{1}\) and \(m_{2}=\mu_{2}\).</p>
+<h1><a id="expectation-propagation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Expectation propagation</h1>
+<p>Minimize \(KL(p(z|x)|q(z))\).</p>
+<p>Because we want to find \(q(z)\) given \(p(z|x)\), it is equivalent to minimize \(-\int p(z|x)\left[\sum^{m}_{i=1}log(q_{i}(z_{i}))\right]dz+const\). Then,</p>
+\[q^{*}_{j}(z_{j})=argmin_{q_{j}}KL(p(z|x)|q(x))=\int_{z_{-j}} p(z|x)dz_{-j}
+\]
+<h2><a id="derivation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Derivation</h2>
+<p>Optimizing \(KL(p(z|x)|q(x))\) w.r.t. \(q_{j}(z_{j})\)</p>
+\[\begin{align}
+KL(p(z|x)|q(x))&amp;=-\int_{z}p(z)\left[\sum^{m}_{i=1}log(q_{i}(z_{i}))\right]dz+const\\
+&amp;=-\int_{z}p(z)log(q_{j}(z_{j}))dz+const\\
+&amp;=-\int_{z_{j}}log(q_{j}(z_{j}))\left[\int_{z_{-j}}p(z)dz_{-j}\right]dz_{j}+const
+\end{align}
+\]
+<p>The above expression is the cross entropy. Therefore, \(q^{*}_{j}(z_{j})=\int_{z_{-j}} p(z|x)dz_{-j}\)</p>
+<h1><a id="vi-and-ep" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>VI and EP</h1>
+<p>VI tends to under-estimate, EP tends to over-estimate.</p>
+<p>VI is zero-forcing, EP is zero-avoiding.</p>
 </div></body></html>
