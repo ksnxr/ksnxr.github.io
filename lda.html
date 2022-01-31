@@ -752,7 +752,7 @@ body{ box-sizing: border-box;
 \boldsymbol{\pi}_{i}|\alpha &amp;\sim Dir(\alpha\boldsymbol{1}_{K})\\
 q_{il}|\boldsymbol{\pi}_{i} &amp;\sim Cat(\boldsymbol{\pi}_{i})\\
 \boldsymbol{b}_{k}|\gamma &amp;\sim Dir(\gamma \mathbf{1}_{V})\\
-y_{il}|q_{il}=k,\boldsymbol{B} &amp;\sim Cat(\boldsymbol{b}_{k})
+y_{il}|q_{il}=k,\boldsymbol{b}_{k} &amp;\sim Cat(\boldsymbol{b}_{k})
 \end{aligned}
 \]
 <ul>
@@ -768,9 +768,9 @@ y_{il}|q_{il}=k,\boldsymbol{B} &amp;\sim Cat(\boldsymbol{b}_{k})
 </ul>
 <h2><a id="gibbs-sampling" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Gibbs sampling</h2>
 \[\begin{aligned}
-p(q_{il}=k|\cdot)&amp;\propto exp[log\pi_{ik}+logb_{k,y_{il}}]\\
-p(\pi_{i}|\cdot)&amp;=Dir({\alpha_{k}+\sum_{l}\mathbf{I}(q_{il}=k)})\\
-p(b_{k}|\cdot)&amp;=Dir({\gamma_{v}+\sum_{i}\sum_{l}\mathbf{I}(y_{il}=v,q_{il}=k)})
+p(q_{il}=k|\cdot)&amp;\propto exp[log\boldsymbol{\pi}_{i,k}+log\boldsymbol{b}_{k,y_{il}}]\\
+p(\pi_{i}|\cdot)&amp;=Dir({\alpha\boldsymbol{1}_{K}+\sum_{l}\mathbf{I}(q_{il}=k)})\\
+p(b_{k}|\cdot)&amp;=Dir({\gamma\boldsymbol{1}_{V}+\sum_{i}\sum_{l}\mathbf{I}(y_{il}=v,q_{il}=k)})
 \end{aligned}
 \]
 <p>Dirichlet distribution is conjugate prior for Categorical distribution.</p>
@@ -782,4 +782,5 @@ p(b_{k}|\cdot)&amp;=Dir({\gamma_{v}+\sum_{i}\sum_{l}\mathbf{I}(y_{il}=v,q_{il}=k
 p(q_{il}=k|\cdot)&amp;\propto \frac{c^{-}_{vk}+\gamma}{c^{-}_{k}+V\gamma} \frac{c^{-}_{ik}+\alpha}{L_{i}+K\alpha}\\
 \end{aligned}
 \]
+<p>This can be directly obtained from the 3 conditional distributions mentioned in Gibbs sampling.</p>
 </div></body></html>
