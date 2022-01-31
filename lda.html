@@ -764,7 +764,6 @@ y_{il}|q_{il}=k,\boldsymbol{b}_{k} &amp;\sim Cat(\boldsymbol{b}_{k})
 <li>\(\boldsymbol{b}_{k}\): \(k\)th topic's word distribution</li>
 <li>\(L_{i}\): length of document \(i\)</li>
 <li>\(N\): total number of documents</li>
-<li>\(\boldsymbol{B}\): distributions of words</li>
 </ul>
 <h2><a id="gibbs-sampling" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Gibbs sampling</h2>
 \[\begin{aligned}
@@ -782,5 +781,7 @@ p(b_{k}|\cdot)&amp;=Dir({\gamma\boldsymbol{1}_{V}+\sum_{i}\sum_{l}\mathbf{I}(y_{
 p(q_{il}=k|\cdot)&amp;\propto \frac{c^{-}_{vk}+\gamma}{c^{-}_{k}+V\gamma} \frac{c^{-}_{ik}+\alpha}{L_{i}+K\alpha}\\
 \end{aligned}
 \]
-<p>This can be directly obtained from the 3 conditional distributions mentioned in Gibbs sampling.</p>
+<p>This can be directly obtained from the 3 conditional distributions mentioned in Gibbs sampling and a property of Dirichlet distribution, i.e.</p>
+\[E[X_{i}]=\frac{\alpha_{i}}{\sum_{k=1}^{K}\alpha_{k}}
+\]
 </div></body></html>
