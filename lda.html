@@ -773,6 +773,10 @@ p(\pi_{i}|\cdot)&amp;=Dir({\alpha_{k}+\sum_{l}\mathbf{I}(q_{il}=k)})\\
 p(b_{k}|\cdot)&amp;=Dir({\gamma_{v}+\sum_{i}\sum_{l}\mathbf{I}(y_{il}=v,q_{il}=k)})
 \end{aligned}
 \]
+<p>Dirichlet distribution is conjugate prior for Categorical distribution.</p>
+<p>The first can be obtained based on line 2 and 4 of the generative model.</p>
+<p>The second can be obtained based on line 1 and 2 of the generative model.</p>
+<p>The third can be obtained based on line 3 and 4 of the generative model.</p>
 <h2><a id="collapsed-gibbs-sampling" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Collapsed Gibbs sampling</h2>
 \[\begin{aligned}
 p(q_{il}=k|\cdot)&amp;\propto \frac{c^{-}_{vk}+\gamma}{c^{-}_{k}+V\gamma} \frac{c^{-}_{ik}+\alpha}{L_{i}+K\alpha}\\
