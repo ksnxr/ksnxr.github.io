@@ -770,7 +770,7 @@ KL(q(z)|p(z|x))&amp;=\int_{z}q(z)log\left(\frac{q(z)}{p(z|x)}\right)dz\\
 \]
 <h2><a id="derivation" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Derivation</h2>
 \[\begin{align}
-ELBO(q)&amp;=E_{q}[log(p(x,z))]-E_{q}[log(p(z))]\\
+ELBO(q)&amp;=E_{q}[log(p(x,z))]-E_{q}[log(q(z))]\\
 &amp;=\int_{z}q(z)log(p(x,z))dz-(E_{q_{j}}[log(q_{j}(z_{j}))]+\sum_{i\neq j}E_{q_{i}}[log(q_{i}(z_{i}))])\\
 &amp;=\int_{z_{j}}q_{j}(z_{j})[\int_{z_{-j}}q_{-j}(z_{-j})log(p(x,z))dz_{-j}]dz_{j}-E_{q_{j}}[log(q_{j}(z_{j}))]+const\\
 &amp;=\int_{z_{j}}q_{j}(z_{j})E_{q_{-j}}[log(p(x,z))]dz_{j}-\int_{z_{j}}q_{j}(z_{j})log(q_{j}(z_{j}))dz_{j}+const
@@ -779,7 +779,7 @@ ELBO(q)&amp;=E_{q}[log(p(x,z))]-E_{q}[log(p(z))]\\
 <p>Define a new distribution \(\tilde{p}_{j}\), such that \(log(\tilde{p}_{j}(x,z_{j}))=E_{q_{-j}}[log(p(x,z))]+const\).</p>
 <p>Then,</p>
 \[\begin{align}
-ELBO(q)&amp;=\int_{z_{j}}q_{j}(z_{j})log(\tilde{p}_{j}(x,z_{j}))dz_{j}-\int_{z_{j}}q_{j}(z_{j})dz_{j}+const\\
+ELBO(q)&amp;=\int_{z_{j}}q_{j}(z_{j})log(\tilde{p}_{j}(x,z_{j}))dz_{j}-\int_{z_{j}}q_{j}(z_{j})log(q_{j}(z_{j}))dz_{j}+const\\
 &amp;=\int_{z_{j}}q_{j}(z_{j})log\left(\frac{\tilde{p}_{j}(x,z_{j})}{q_{j}(z_{j})}\right)dz_{j}+const\\
 &amp;=-KL(q_{j}(z_{j})|\tilde{p}_{j}(x,z_{j}))+const
 \end{align}
