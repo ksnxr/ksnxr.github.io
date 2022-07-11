@@ -4,3 +4,4 @@
 
 * [Notes on Metropolis-adjusted Langevin algorithm](langevin.html)
 
+* [Notes on Gauss Newton matrix](gauss-newton.html)
