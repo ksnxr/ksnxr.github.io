@@ -755,9 +755,9 @@ body{ box-sizing: border-box;
 \[\begin{align}
 H_{ij} &amp;= \frac{\partial}{\partial \theta_{j}} \frac{L(f(\theta))}{\partial\theta_{i}}\\
 &amp;= \frac{\partial}{\partial \theta_{j}}(\sum_{k}\frac{\partial L}{\partial f(\theta)_{k}}f(\theta)\frac{\partial f(\theta)_{k}}{\partial\theta_{i}})\\
-&amp;= \sum_{k}(\frac{\partial}{\partial \theta_{j}}(\frac{\partial L}{\partial f(\theta)_{k}})f(\theta)\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial f(\theta)_{k}}{\partial\theta_{i}\theta_{j}})\\
-&amp;= \sum_{k}(\sum_{l}\frac{\partial L}{\partial f(\theta)_{k} f(\theta)_{l}}f(\theta)\frac{\partial f(\theta)_{l}}{\partial \theta_{i}}\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial f(\theta)_{k}}{\partial\theta_{i}\theta_{j}})\\
-&amp;= \sum_{k}\sum_{l}\frac{\partial L}{\partial f(\theta)_{k} f(\theta)_{l}}f(\theta)\frac{\partial f(\theta)_{l}}{\partial \theta_{i}}\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\sum_{k}\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial f(\theta)_{k}}{\partial\theta_{i}\theta_{j}}
+&amp;= \sum_{k}(\frac{\partial}{\partial \theta_{j}}(\frac{\partial L}{\partial f(\theta)_{k}})f(\theta)\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial^{2} f(\theta)_{k}}{\partial\theta_{i}\theta_{j}})\\
+&amp;= \sum_{k}(\sum_{l}\frac{\partial^{2} L}{\partial f(\theta)_{k} \partial f(\theta)_{l}}f(\theta)\frac{\partial f(\theta)_{l}}{\partial \theta_{i}}\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial^{2} f(\theta)_{k}}{\partial\theta_{i} \partial \theta_{j}})\\
+&amp;= \sum_{k}\sum_{l}\frac{\partial^{2} L}{\partial f(\theta)_{k} \partial f(\theta)_{l}}f(\theta)\frac{\partial f(\theta)_{l}}{\partial \theta_{i}}\frac{\partial f(\theta)_{k}}{\partial \theta_{i}} +\sum_{k}\frac{\partial L}{\partial f(\theta)_{k}} f(\theta)\frac{\partial^{2} f(\theta)_{k}}{\partial\theta_{i}\partial\theta_{j}}
 \end{align}
 \]
 <p>Summarizing the results in matrix form, we can obtain that</p>
