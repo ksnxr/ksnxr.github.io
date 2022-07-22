@@ -1,3 +1,5 @@
+* [Notes on multivariate Gaussian distribution](gaussian.html)
+* 
 * [Notes on Variational Inference](vi.html)
 
 * [Notes on Latent Dirichlet Allocation](lda.html)
