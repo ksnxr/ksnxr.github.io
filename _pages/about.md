@@ -26,11 +26,10 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-I am a PhD student at the University of Helsinki, Finland. 
-
+I am a PhD student at the University of Helsinki, Finland.
 
 I am broadly interested in
 
-* **Generative modeling**: Diffusion / Flows / Energy-Based Models
+- **Generative modeling**: Diffusion / Flows / Energy-Based Models
 
-* **Geometric machine learning**: Riemannian geometry in machine learning
+- **Geometric machine learning**: Riemannian geometry in machine learning
