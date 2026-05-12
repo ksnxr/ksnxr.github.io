@@ -5,28 +5,32 @@
 @misc{hartmannWarpedGeometricInformation2023,
   title = {Warped Geometric Information on the Optimisation of {{Euclidean}} Functions},
   author = {Hartmann, Marcelo and Williams, Bernardo and Yu, Hanlin and Girolami, Mark and Barp, Alessandro and Klami, Arto},
-  year = 2023
+  year = 2023,
+  abstract = {We consider the fundamental task of optimising a real-valued function defined in a potentially high-dimensional Euclidean space, such as the loss function in many machine-learning tasks or the logarithm of the probability distribution in statistical inference. We use Riemannian geometry notions to redefine the optimisation problem of a function on the Euclidean space to a Riemannian manifold with a warped metric, and then find the function's optimum along this manifold. The warped metric chosen for the search domain induces a computational friendly metric-tensor for which optimal search directions associated with geodesic curves on the manifold becomes easier to compute. Performing optimization along geodesics is known to be generally infeasible, yet we show that in this specific manifold we can analytically derive Taylor approximations up to third-order. In general these approximations to the geodesic curve will not lie on the manifold, however we construct suitable retraction maps to pull them back onto the manifold. Therefore, we can efficiently optimize along the approximate geodesic curves. We cover the related theory, describe a practical optimization algorithm and empirically evaluate it on a collection of challenging optimisation benchmarks. Our proposed algorithm, using 3rd-order approximation of geodesics, tends to outperform standard Euclidean gradient-based counterparts in term of number of iterations until convergence.}
 }
 
 @inproceedings{luu2024nongeodesicallyconvex,
   title = {Non-Geodesically-Convex Optimization in the {{Wasserstein}} Space},
   booktitle = {The Thirty-Eighth Annual Conference on Neural Information Processing Systems},
   author = {Luu, Hoang Phuc Hau and Yu, Hanlin and Williams, Bernardo and Mikkola, Petrus and Hartmann, Marcelo and Puolam{\"a}ki, Kai and Klami, Arto},
-  year = 2024
+  year = 2024,
+  abstract = {We study a class of optimization problems in the Wasserstein space (the space of probability measures) where the objective function is nonconvex along generalized geodesics. Specifically, the objective exhibits some difference-of-convex structure along these geodesics. The setting also encompasses sampling problems where the logarithm of the target distribution is difference-of-convex. We derive multiple convergence insights for a novel semi Forward-Backward Euler scheme under several nonconvex (and possibly nonsmooth) regimes. Notably, the semi Forward-Backward Euler is just a slight modification of the Forward-Backward Euler whose convergence is---to our knowledge---still unknown in our very general non-geodesically-convex setting.}
 }
 
 @inproceedings{luuStochasticVariancereducedGaussian2025,
   title = {Stochastic Variance-Reduced {{Gaussian}} Variational Inference on the {{Bures-Wasserstein}} Manifold},
   booktitle = {The {{Thirteenth International Conference}} on {{Learning Representations}}},
   author = {Luu, Hoang Phuc Hau and Yu, Hanlin and Williams, Bernardo and Hartmann, Marcelo and Klami, Arto},
-  year = 2025
+  year = 2025,
+  abstract = {Optimization in the Bures-Wasserstein space has been gaining popularity in the machine learning community since it draws connections between variational inference and Wasserstein gradient flows. The variational inference objective function of Kullback–Leibler divergence can be written as the sum of the negative entropy and the potential energy, making forward-backward Euler the method of choice. Notably, the backward step admits a closed-form solution in this case, facilitating the practicality of the scheme. However, the forward step is not exact since the Bures-Wasserstein gradient of the potential energy involves "intractable" expectations. Recent approaches propose using the Monte Carlo method -- in practice a single-sample estimator -- to approximate these terms, resulting in high variance and poor performance. We propose a novel variance-reduced estimator based on the principle of control variates. We theoretically show that this estimator has a smaller variance than the Monte-Carlo estimator in scenarios of interest. We also prove that variance reduction helps improve the optimization bounds of the current analysis. We demonstrate that the proposed estimator gains order-of-magnitude improvements over the previous Bures-Wasserstein methods.}
 }
 
 @inproceedings{williamsGeodesicSliceSampler2025,
   title = {Geodesic {{Slice Sampler}} for {{Multimodal Distributions}} with {{Strong Curvature}}},
   booktitle = {The 41st {{Conference}} on {{Uncertainty}} in {{Artificial Intelligence}}},
   author = {Williams, Bernardo and Yu, Hanlin and Luu, Hoang Phuc Hau and Arvanitidis, Georgios and Klami, Arto},
-  year = 2025
+  year = 2025,
+  abstract = {Traditional Markov Chain Monte Carlo sampling methods often struggle with sharp curvatures, intricate geometries, and multimodal distributions. Slice sampling can resolve local exploration inefficiency issues, and Riemannian geometries help with sharp curvatures. Recent extensions enable slice sampling on Riemannian manifolds, but they are restricted to cases where geodesics are available in a closed form. We propose a method that generalizes Hit-and-Run slice sampling to more general geometries tailored to the target distribution, by approximating geodesics as solutions to differential equations. Our approach enables the exploration of the regions with strong curvature and rapid transitions between modes in multimodal distributions. We demonstrate the advantages of the approach over challenging sampling problems.}
 }
 
 @inproceedings{williamsGeometricNoUTurnSamplers2024,
@@ -47,7 +51,8 @@
   title = {Conditional Noise-Contrastive Estimation of Energy-Based Models by Jumping between Modes},
   booktitle = {{{EurIPS}} 2025 Workshop on Principles of Generative Modeling ({{PriGM}})},
   author = {Yu, Hanlin and Gutmann, Michael U. and Klami, Arto and Chehab, Omar},
-  year = 2025
+  year = 2025,
+  abstract = {Learning Energy-Based Models (EBMs) is notoriously difficult when the data distribution is multi-modal. Standard methods such as Score Matching --- even when amortized across many noisy versions of the data as in Energy-Based Diffusion Models --- often fail to capture relative energies between modes because they rely solely on local energy differences. We address this limitation by also considering global energy differences. To do so, we use Conditional Noise-Contrastive Estimation (CNCE) which estimates energy differences between pairs of points drawn using a freely chosen noise distribution. We design this noise distribution to propose pairs of points from different modes, thus comparing the modes directly. We further obtain the asymptotic estimation error of CNCE, derive a theoretically optimal noise distribution, and provide a practical algorithm that combines local and global energy differences. Experiments show that this approach substantially improves estimation in multi-modal settings.}
 }
 
 @inproceedings{yu2025connecting,
@@ -55,7 +60,8 @@
   booktitle = {The Thirty-Ninth Annual Conference on Neural Information Processing Systems},
   author = {Yu, Hanlin and Inal, Berfin and Arvanitidis, Georgios and Hauberg, S{\o}ren and Locatello, Francesco and Fumero, Marco},
   year = 2025,
-  selected = {true}
+  abstract = {Neural models learn representations of high-dimensional data on low-dimensional manifolds. Multiple factors, including stochasticities in the training process, model architectures, and additional inductive biases, may induce different representations, even when learning the same task on the same data. However, it has recently been shown that when a latent structure is shared between distinct latent spaces, relative distances between representations can be preserved, up to distortions. Building on this idea, we demonstrate that exploiting the differential-geometric structure of latent spaces of neural models, it is possible to capture precisely the transformations between representational spaces trained on similar data distributions. Specifically, we assume that distinct neural models parametrize approximately the same underlying manifold, and introduce a representation based on the pullback metric that captures the intrinsic structure of the latent space, while scaling efficiently to large models. We validate experimentally our method on model stitching and retrieval tasks, covering autoencoders and vision foundation discriminative models, across diverse architectures, datasets, pretraining schemes and modalities.},
+  selected = {true},
 }
 
 @inproceedings{yuDensityRatioEstimation2025,
@@ -63,6 +69,7 @@
   booktitle = {Forty-Second {{International Conference}} on {{Machine Learning}}},
   author = {Yu, Hanlin and Klami, Arto and Hyvarinen, Aapo and Korba, Anna and Chehab, Omar},
   year = 2025,
+  abstract = {Density ratio estimation in high dimensions can be reframed as integrating a certain quantity, the time score, over probability paths which interpolate between the two densities. In practice, the time score has to be estimated based on samples from the two densities. However, existing methods for this problem remain computationally expensive and can yield inaccurate estimates. Inspired by recent advances in generative modeling, we introduce a novel framework for time score estimation, based on a conditioning variable. Choosing the conditioning variable judiciously enables a closed-form objective function. We demonstrate that, compared to previous approaches, our approach results in faster learning of the time score and competitive or better estimation accuracies of the density ratio on challenging tasks. Furthermore, we establish theoretical guarantees on the error of the estimated density ratio.},
   selected = {true}
 }
 
@@ -72,6 +79,7 @@
 	booktitle = {The 29th international conference on artificial intelligence and statistics},
 	author = {Yu, Hanlin and Hauberg, Søren and Hartmann, Marcelo and Klami, Arto and Arvanitidis, Georgios},
 	year = {2026},
+  abstract = {Real world data often lie on low-dimensional Riemannian manifolds embedded in high-dimensional spaces. This motivates learning degenerate normalizing flows that map between the ambient space and a low-dimensional latent space. However, if the manifold has a non-trivial topology, it can never be correctly learned using a single flow. Instead multiple flows must be `glued together'. In this paper, we first propose the general training scheme for learning such a collection of flows, and secondly we develop the first numerical algorithms for computing geodesics on such manifolds. Empirically, we demonstrate that this leads to highly significant improvements in topology estimation.},
   selected = {true}
 }
 
@@ -95,5 +103,6 @@
   author = {Yu, Hanlin and Hartmann, Marcelo and Williams, Bernardo and Klami, Arto},
   year = 2023,
   journal = {Transactions on Machine Learning Research},
-  issn = {2835-8856}
+  issn = {2835-8856},
+  abstract = {Stochastic-gradient sampling methods are often used to perform Bayesian inference on neural networks. It has been observed that the methods in which notions of differential geometry are included tend to have better performances, with the Riemannian metric improving posterior exploration by accounting for the local curvature. However, the existing methods often resort to simple diagonal metrics to remain computationally efficient. This loses some of the gains. We propose two non-diagonal metrics that can be used in stochastic-gradient samplers to improve convergence and exploration but have only a minor computational overhead over diagonal metrics. We show that for fully connected neural networks (NNs) with sparsity-inducing priors and convolutional NNs with correlated priors, using these metrics can provide improvements. For some other choices the posterior is sufficiently easy also for the simpler metrics.}
 }
