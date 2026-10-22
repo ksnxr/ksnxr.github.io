@@ -106,3 +106,32 @@
   issn = {2835-8856},
   abstract = {Stochastic-gradient sampling methods are often used to perform Bayesian inference on neural networks. It has been observed that the methods in which notions of differential geometry are included tend to have better performances, with the Riemannian metric improving posterior exploration by accounting for the local curvature. However, the existing methods often resort to simple diagonal metrics to remain computationally efficient. This loses some of the gains. We propose two non-diagonal metrics that can be used in stochastic-gradient samplers to improve convergence and exploration but have only a minor computational overhead over diagonal metrics. We show that for fully connected neural networks (NNs) with sparsity-inducing priors and convolutional NNs with correlated priors, using these metrics can provide improvements. For some other choices the posterior is sufficiently easy also for the simpler metrics.}
 }
+
+
+@misc{yu2026learningenergybasedmodelsstochastic,
+	title = {Learning {Energy}-{Based} {Models} from {Stochastic} {Interpolants} using {Spatiotemporal} {Differences}},
+	url = {https://arxiv.org/abs/2605.26850},
+	author = {Yu, Hanlin and OuYang, RuiKang and Kaushik, Partha and Klami, Arto and Gutmann, Michael U. and Chehab, Omar},
+	year = {2026},
+	note = {arXiv: 2605.26850 [cs.LG]},
+  abstract = {Learning an energy-based model from data samples is a central problem in machine learning. Many recent and popular methods, such as denoising score matching for training energy-based diffusion models, use stochastic interpolants to corrupt data samples at different noise levels indexed by a time variable. This defines a joint density over both the data space and time, and most methods learn its energy through either spatial or temporal differences. We identify distinct failure modes for both of these approaches. To solve them, we propose Spatiotemporal Noise-Contrastive Estimation (stNCE), a framework for learning the energy through joint spatiotemporal differences. stNCE unifies many existing methods and leads to new training objectives. Experiments on images and molecules demonstrate performance competitive with state-of-the-art density estimation methods.},
+}
+
+@inproceedings{ouyang2026fewstep,
+	title = {Few-step boltzmann generators via scalable likelihood flow maps},
+	url = {https://openreview.net/forum?id=mfdTHHRIid},
+	booktitle = {{ICML} 2026 workshop on structured probabilistic inference \& generative modeling},
+	author = {OuYang, RuiKang and Yu, Hanlin and Ai, Xinyue and He, Yutong and Boffi, Nicholas Matthew and Ravikumar, Pradeep and Hernández-Lobato, José Miguel and Simchowitz, Max and Miller, Benjamin Kurt and Chehab, Omar},
+	year = {2026},
+  abstract = {Recent progress in flow-based generative modeling has led to models that output high-quality samples while using only a small number of function evaluations. However, at present, there is a lack of similar advances in estimating the density of the generated samples. In particular, most existing methods either rely on restrictive architectures that enable exact calculations, or use stochastic approximations such as Hutchinson’s trace estimator that introduce substantial variance. In this work, we introduce SCAlable LikeLihood distillation of flOw maPs (SCALLOP). SCALLOP builds on the recently proposed F2D2, a likelihood flow map model that can generate samples and their densities in a small number of function evaluations. While F2D2 uses Hutchinson's estimator during training, we introduce an alternative and more scalable likelihood distillation objective that is Hutchinson-free and admits a vectorized formulation. Empirically, we demonstrate the effectiveness of SCALLOP as a Boltzmann generator in molecular science, and further validate its benefit on image datasets. SCALLOP significantly reduces both training variance and training time while consistently improving performance compared to F2D2, and is competitive with the state-of-the-art while achieving up to 10 times 
+ inference speedup over the fastest baseline.}
+}
+
+
+@inproceedings{yu2026faster,
+	title = {Faster {Density} {Estimation} and {Inference}-{Time} {Steering} for {Flow} {Language} {Models}},
+	url = {https://openreview.net/forum?id=gD97exlJSH},
+	booktitle = {Beyond {Next} {Token} {Prediction}: {Diffusion} and {Flow} {Models} for {Next}-{Generation} {Decoding}},
+	author = {Yu, Hanlin and Marcotte, Sibylle and Klami, Arto and Naesseth, Christian A. and Chehab, Omar},
+	year = {2026},
+}
