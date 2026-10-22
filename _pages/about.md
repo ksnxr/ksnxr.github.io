@@ -35,5 +35,3 @@ I am broadly interested in
 - **Geometric machine learning**: Riemannian geometry in machine learning
 
 - **Representation learning**
-
-<span style="color:red">I am scheduled to graduate by Fall 2026 and am actively looking for postdoctoral opportunities!</span>
