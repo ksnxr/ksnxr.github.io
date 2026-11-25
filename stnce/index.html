@@ -1,147 +1,1123 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="stNCE learns energy-based models by comparing samples across space and noise levels. A NeurIPS 2026 paper by Hanlin Yu and colleagues.">
-  <title>stNCE · Learning Energy-Based Models from Stochastic Interpolants</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-<header><a class="brand" href="#top">st<span>NCE</span></a><nav aria-label="Page sections"><a href="#method">Method</a><a href="#results">Results</a><a href="#citation">Citation</a></nav></header>
-<main id="top">
-  <section class="hero">
-    <div><p class="label">NeurIPS 2026</p>
-      <h1>Learning Energy-Based Models from Stochastic Interpolants using <em>Spatiotemporal Differences</em></h1>
-      <p class="authors">Hanlin Yu<sup>1</sup>, RuiKang OuYang<sup>2</sup>, Partha Kaushik<sup>3</sup>, Arto Klami<sup>1</sup>, Michael U. Gutmann<sup>4</sup>, Omar Chehab<sup>3</sup></p>
-      <p class="institutes"><sup>1</sup> University of Helsinki · <sup>2</sup> University of Cambridge · <sup>3</sup> Carnegie Mellon University · <sup>4</sup> University of Edinburgh</p>
-      <div class="actions"><a class="primary" href="https://openreview.net/forum?id=QnHvCvmOn6">OpenReview</a><a href="https://arxiv.org/abs/2605.26850">arXiv</a><a href="https://github.com/ksnxr/stnce">Code on GitHub</a></div>
-    </div>
-    <figure class="cover"><img src="figures/interpolant.svg" alt="Successive density curves show one noise peak gradually splitting into two data peaks."><figcaption>A stochastic interpolant from Gaussian noise to a two-mode data distribution.</figcaption></figure>
-  </section>
-  <section id="method"><p class="label">Method</p><h2>Learning across space and time</h2>
-    <p class="lead">A stochastic interpolant connects noise to data. At each time <i>t</i>, it defines a density over locations <i>x</i>. How should we train Energy-based Models by constructing contrastive comparisons between two points?</p>
-    <p>Spatial comparisons hold the noise level fixed. When modes are far apart, local comparisons struggle to recover the global mode weights, leading to pathologies under <i>multimodality</i>. Temporal comparisons hold the location fixed and vary the time, and suffer when the data has high density in low density region of the noise, i.e. <i>support mismatch</ii>. Spatiotemporal comparisons vary both location and noise level in the same comparison and avoid both pathologies.</p>
-    <p class="method-links"><a href="#loss">Shared logistic loss</a><a href="#comparisons">Temporal, spatial, and spatiotemporal comparisons</a><a href="#kernels">Perturbation kernels</a><a href="#forward-reverse">Forward–reverse kernel</a></p>
-    <figure><a href="figures/teaser_last_annotated.svg"><img loading="lazy" src="figures/teaser_last_annotated.svg" alt="Density diagram and three heatmaps. Temporal error grows with support mismatch, spatial error grows with mode separation, and spatiotemporal error stays near zero in this experiment."></a><figcaption>In a one-dimensional Gaussian mixture, the two axes independently vary multimodality and support mismatch. Darker red indicates higher estimation error.</figcaption></figure>
-  </section>
-  <section class="formulation" aria-labelledby="loss">
-<h2 id="loss">A shared logistic loss</h2>
-<p>A clean sample <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>∼</mo><msub><mi>p</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">x_1\sim p_1</annotation></semantics></math> and a noise sample <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>∼</mo><msub><mi>p</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">x_0\sim p_0</annotation></semantics></math> give the stochastic interpolant <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><mi>t</mi><msub><mi>x</mi><mn>1</mn></msub></mrow><annotation encoding="application/x-tex">x_t=(1-t)x_0+t x_1</annotation></semantics></math>. Drawing <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math> from the chosen time density <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p(t)</annotation></semantics></math> between 0 and 1 gives the joint density <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_d(x,t)=p(t)p_d(x\mid t)</annotation></semantics></math>. The Energy-based Model (EBM) represents the conditional density as</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>&#8289;</mo></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><msub><mi>E</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi mathvariant="normal">log</mi><msub><mi>Z</mi><mi>t</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">p_\theta(x\mid t)=\exp\!\left(-E_\theta(x,t)-\log Z_t\right).</annotation></semantics></math></p>
-<p>Class <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math> and class <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math> present a pair in reversed order against each other. With equally likely classes, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\mathrm{sigmoid}(F(x))</annotation></semantics></math> estimates the probability that the observation belongs to class <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math>. The population-optimal logit is <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mo>*</mo></msup><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>A</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>B</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">F^*(u)=\log p_A(u)-\log p_B(u)</annotation></semantics></math>.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi mathvariant="script">ℒ</mi><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">c</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mi>−</mi><msub><mi mathvariant="double-struck">𝔼</mi><mrow><mi>u</mi><mo>∼</mo><msub><mi>p</mi><mi>A</mi></msub></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">]</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mspace width="1.0em"></mspace><mo>−</mo><msub><mi mathvariant="double-struck">𝔼</mi><mrow><mi>u</mi><mo>∼</mo><msub><mi>p</mi><mi>B</mi></msub></mrow></msub><mrow><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-\mathcal{L}_{\mathrm{logistic}}(F)
-&amp;=-\mathbb{E}_{u\sim p_A}\left[\log\mathrm{sigmoid}(F(u))\right]\\
-&amp;\quad-\mathbb{E}_{u\sim p_B}\left[\log\left(1-\mathrm{sigmoid}(F(u))\right)\right].
-\end{aligned}</annotation></semantics></math></p>
-<p>For each method below, substitute its model logit <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>F</mi><mi>θ</mi></msub><annotation encoding="application/x-tex">F_\theta</annotation></semantics></math> for <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math> and minimize <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="script">ℒ</mi><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">c</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>F</mi><mi>θ</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{L}_{\mathrm{logistic}}(F_\theta)</annotation></semantics></math> over <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>.</p>
-</section>
-  <section class="formulation" aria-labelledby="comparisons">
-<h2 id="comparisons">Temporal, spatial, and joint comparisons</h2>
-<h3 id="tnce-changes-time-at-a-fixed-location">tNCE changes time at a fixed location</h3>
-<p>For tNCE, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">u=(x,t,t&#39;)</annotation></semantics></math>. Draw <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,t)</annotation></semantics></math> from the interpolant and propose <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>t</mi><mo>′</mo></msup><annotation encoding="application/x-tex">t&#39;</annotation></semantics></math> given <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>. Swapping the times keeps the position <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math> fixed.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>A</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>B</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-p_A(x,t,t&#39;) &amp;= p_d(x,t)\,p_n(t&#39;\mid t),\\
-p_B(x,t,t&#39;) &amp;= p_d(x,t&#39;)\,p_n(t\mid t&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>F</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-F_\theta(x,t,t&#39;) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x\mid t&#39;)+c(t,t&#39;),\\
-c(t,t&#39;) &amp;= \log p(t)+\log p_n(t&#39;\mid t)-\log p(t&#39;)-\log p_n(t\mid t&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p>Both normalizers enter the comparison through <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\log Z(t)+\log Z(t&#39;)</annotation></semantics></math>. If <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math> is common at one time and rare at the other, few samples inform the density ratio there.</p>
-<h3 id="tcnce-changes-location-at-a-fixed-time">tCNCE changes location at a fixed time</h3>
-<p>For tCNCE, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">u=(x,x&#39;,t)</annotation></semantics></math>. Draw <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,t)</annotation></semantics></math> from the interpolant and propose <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>x</mi><mo>′</mo></msup><annotation encoding="application/x-tex">x&#39;</annotation></semantics></math> given <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math>. Swapping the locations and keeping the sampled time fixed:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>A</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>B</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-p_A(x,x&#39;,t) &amp;= p_d(x,t)\,p_n(x&#39;\mid x),\\
-p_B(x,x&#39;,t) &amp;= p_d(x&#39;,t)\,p_n(x\mid x&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p>The shared normalizer <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">Z(t)</annotation></semantics></math> cancels from the logit.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>F</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-F_\theta(x,x&#39;,t) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x&#39;\mid t)+c(x,x&#39;),\\
-c(x,x&#39;) &amp;= \log p_n(x&#39;\mid x)-\log p_n(x\mid x&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p>At a given time, local comparisons within well-separated modes can reveal each mode’s shape while providing little information about their relative masses.</p>
-<h3 id="joint-comparison">stNCE compares both endpoints</h3>
-<p>stNCE asks which endpoint came from the interpolant. Draw <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x,t)</annotation></semantics></math> from <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_d(x,t)</annotation></semantics></math>, then perturb it to <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(x&#39;,t&#39;)</annotation></semantics></math> using <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_n(x&#39;,t&#39;\mid x,t)</annotation></semantics></math>.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>A</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>p</mi><mi>B</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-p_A(x,t,x&#39;,t&#39;) &amp;= p_d(x,t)\,p_n(x&#39;,t&#39;\mid x,t),\\
-p_B(x,t,x&#39;,t&#39;) &amp;= p_d(x&#39;,t&#39;)\,p_n(x,t\mid x&#39;,t&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p>For a fixed kernel, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math> collects the known time prior and perturbation terms:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>F</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mspace width="1.0em"></mspace><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{aligned}
-F_\theta(x,t,x&#39;,t&#39;) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x&#39;\mid t&#39;)+c(x,t,x&#39;,t&#39;),\\
-c(x,t,x&#39;,t&#39;) &amp;= \log p_n(x&#39;,t&#39;\mid x,t)-\log p_n(x,t\mid x&#39;,t&#39;)\\
-&amp;\quad +\log p(t)-\log p(t&#39;).
-\end{aligned}</annotation></semantics></math></p>
-<p>The log-density ratio contains both <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>E</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>E</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">E_\theta(x&#39;,t&#39;)-E_\theta(x,t)</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log Z(t&#39;)-\log Z(t)</annotation></semantics></math>.</p>
-<figure><a href="figures/illustration_of_limitations.svg"><img loading="lazy" src="figures/illustration_of_limitations.svg" alt="Temporal and spatial comparisons necessarily traverse low density region under certain scenarios. Spatiotemporal comparisons could instead remain within high density region."></a><figcaption>Temporal and spatial comparisons necessarily traverse low density region under certain scenarios. Spatiotemporal comparisons could instead remain within high density region.</figcaption></figure>
-</section>
-  <section class="formulation" aria-labelledby="kernels">
-<h2 id="kernels">Choosing a perturbation kernel</h2>
-<p>The kernel determines which energy differences the classifier sees. A meaningful proposal places the second endpoint in a region with high density at the proposed time.</p>
-<h3 id="mixture-stnce-m">Mixture (stNCE-m)</h3>
-<p>Change time as in tNCE or change location as in tCNCE with equal probabilities. <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>x</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\delta_x(x&#39;)</annotation></semantics></math> keeps the location fixed and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\delta_t(t&#39;)</annotation></semantics></math> keeps time fixed.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>x</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_n(x&#39;,t&#39;\mid x,t)
-= \tfrac{1}{2}\, p_n(t&#39;\mid t)\,\delta_{x}(x&#39;)
-+ \tfrac{1}{2}\, p_n(x&#39;\mid x)\,\delta_{t}(t&#39;)</annotation></semantics></math></p>
-<h3 id="white-noise-stnce-w">White noise (stNCE-w)</h3>
-<p>Perturb the location with isotropic Gaussian noise of standard deviation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math> and draw a new time based on Gaussian perturbation.</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mi>I</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="prefix">|</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_n(x&#39;,t&#39;\mid x,t)
-= \mathcal{N}(x&#39;\mid x,\sigma^2 I)\,p(t&#39;|t)</annotation></semantics></math></p>
-<h3 id="forward-reverse">Forward–reverse (stNCE-o and stNCE-s)</h3>
-<p>First propose <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>t</mi><mo>′</mo></msup><annotation encoding="application/x-tex">t&#39;</annotation></semantics></math>, then choose the spatial transition according to the direction of the time step:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="prefix">|</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_n(x&#39;,t&#39;\mid x,t)
-= p_n(x&#39;\mid x,t,t&#39;)\,p_{n}(t&#39;|t)</annotation></semantics></math></p>
-<figure class="kernel-figure">
-<img loading="lazy" src="figures/illustration_of_conditional_noise.svg" alt="A Gaussian perturbation leaves the blue high-density band. A forward–reverse step follows the band to the proposed time.">
-<figcaption>
-The blue band marks high density in space and time. The forward–reverse kernel uses the interpolant dynamics to guide the proposal along it.
-</figcaption>
-</figure>
-<p><strong>Noising, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>t</mi><mo>′</mo></msup><mo>&lt;</mo><mi>t</mi></mrow><annotation encoding="application/x-tex">t&#39;&lt;t</annotation></semantics></math>.</strong> For the linear interpolant with standard Gaussian reference noise, moving toward <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">t=0</annotation></semantics></math> scales the current sample and adds Gaussian noise. For <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">t&gt;0</annotation></semantics></math> the exact transition is</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="true" form="infix">|</mo><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mi>/</mi><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>x</mi><mo>,</mo><mspace width="0.278em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>t</mi><mo>′</mo></msup><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mo>−</mo><msup><mi>t</mi><mo>′</mo></msup><msup><mi></mi><mn>2</mn></msup><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mi>/</mi><msup><mi>t</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p_n(x&#39;\mid x,t,t&#39;) = \mathcal{N}\!\left(x&#39;\middle| (t&#39;/t)x,\; \left((1-t&#39;)^2 - t&#39;^2(1-t)^2/t^2\right) I \right)</annotation></semantics></math></p>
-<p><strong>Denoising, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>t</mi><mo>′</mo></msup><mo>&gt;</mo><mi>t</mi></mrow><annotation encoding="application/x-tex">t&#39;&gt;t</annotation></semantics></math>.</strong> Moving toward the clean-data endpoint requires the reverse transition. Its ideal form is the Bayes inverse of noising. For <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">t&gt;0</annotation></semantics></math>, we use the following Gaussian approximation for the reverse SDE, whose mean depends on the space score <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\nabla_x\log p_t(x)</annotation></semantics></math>:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo stretchy="true" form="infix">|</mo><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mi>/</mi><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>x</mi><mo>+</mo><mstyle displaystyle="false"><mfrac><mrow><mn>2</mn><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><mi>t</mi></mfrac></mstyle><mspace width="0.167em"></mspace><mtext mathvariant="normal">sg</mtext><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub><mi mathvariant="normal">log</mi><msub><mi>p</mi><mi>t</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="0.278em"></mspace><mstyle displaystyle="false"><mfrac><mrow><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>+</mo><msup><mi>t</mi><mo>′</mo></msup><mo>−</mo><mn>2</mn><mi>t</mi><msup><mi>t</mi><mo>′</mo></msup><mo stretchy="false" form="postfix">)</mo></mrow><msup><mi>t</mi><mn>2</mn></msup></mfrac></mstyle><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">p_n(x&#39;\mid x,t,t&#39;) = \mathcal{N}\!\left(
-x&#39;\middle|
-(t&#39;/t)x + \tfrac{2(1-t)(t&#39;-t)}{t}\,\text{sg}\left(\nabla_x \log p_t(x)\right),\;
-\tfrac{(t&#39;-t)(t+t&#39;-2tt&#39;)}{t^2} I
-\right)</annotation></semantics></math></p>
-<p><strong>Oracle and self scores.</strong> stNCE-o uses the true space score when available. stNCE-s uses the current model’s score <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>∇</mi><mi>x</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow><msub><mi>p</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>−</mi><msub><mi>∇</mi><mi>x</mi></msub><msub><mi>E</mi><mi>θ</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\nabla_x\log p_\theta(x\mid t)=-\nabla_x E_\theta(x,t)</annotation></semantics></math>. The stop-gradient operator <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">g</mi></mrow><annotation encoding="application/x-tex">\mathrm{sg}</annotation></semantics></math> holds the score in the kernel fixed during each gradient update. The next step uses the refreshed score.</p>
-</section>
-  <section id="results"><p class="label">Experiments</p><h2>Image likelihoods and molecular energies</h2>
-    <article id="mnist-gaussian-mixture" aria-labelledby="mnist-mixture-heading">
-      <div>
-        <h3 id="mnist-mixture-heading">MNIST Gaussian mixture</h3>
-        <p>How accurately can a model learn the density of well-separated digits? Each of 100 MNIST images, ten per digit class, is the center of a Gaussian in 784 dimensions. The mixture’s exact density is known, so we can measure the error in the model’s log density directly.</p>
-        <p>Switching from white noise to the <a href="#forward-reverse">forward–reverse kernel</a> reduces mean LogMSE from <strong>9.96 to 4.80</strong>. Dual score matching achieves the lowest error among the methods shown, while stNCE-s takes about half as long per training step.</p>
-      </div>
-      <table class="mixture-results">
-        <caption>LogMSE is the log of the mean squared error between model and true log densities, reported as mean ± standard deviation. Time is the average time per training step. Lower is better for both. <a href="https://arxiv.org/abs/2605.26850">Full results in the paper</a>.</caption>
-        <thead>
-          <tr><th scope="col">Method</th><th scope="col">LogMSE</th><th scope="col">Seconds/step</th></tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">tNCE (temporal)</th><td>12.37 ± 0.02</td><td>0.39</td></tr>
-          <tr><th scope="row">CTSM (temporal)</th><td>12.44 ± 0.45</td><td>0.68</td></tr>
-          <tr><th scope="row">tCNCE (spatial)</th><td>12.28 ± 0.26</td><td>0.40</td></tr>
-          <tr><th scope="row">DSM (spatial)</th><td>16.39 ± 0.07</td><td>0.70</td></tr>
-          <tr><th scope="row">stNCE-w (white noise)</th><td>9.96 ± 0.05</td><td>0.40</td></tr>
-          <tr><th scope="row">stNCE-s (forward–reverse)</th><td>4.80 ± 0.10</td><td><strong>0.36</strong></td></tr>
-          <tr><th scope="row">Dual score matching</th><td><strong>3.73 ± 0.18</strong></td><td>0.70</td></tr>
-        </tbody>
-      </table>
-    </article>
-    <article><div><h3>ImageNet64</h3><p>Combining stNCE-s with denoising score matching (DSM) gives an estimated test negative log likelihood of <strong>2.94 bits per dimension</strong> in a single network evaluation. Dual score matching gives 3.36.</p></div><figure><a href="figures/imagenet64_extreme_log_densities.png"><img loading="lazy" src="figures/imagenet64_extreme_log_densities.png" alt="Two grids of ImageNet64 test images ranked by model density."></a><figcaption>Test images assigned the highest densities (left) and lowest densities (right).</figcaption></figure></article>
-    <article><div><h3>Molecular configurations</h3><p>We compare samples from learned energy models with equilibrium configurations of Alanine Dipeptide (ALDP) and Chignolin. On Chignolin, stNCE-s with DSM achieves comparable Potential-of-Mean-Force (PMF) accuracy to FPE at <strong>roughly half the training cost</strong>.</p></div><figure><a href="figures/pmf_vs_runtime.svg"><img loading="lazy" src="figures/pmf_vs_runtime.svg" alt="Plots of potential-of-mean-force error versus training time for diffusion and Langevin sampling on two molecular datasets."></a><figcaption>Potential-of-Mean-Force (PMF) error versus training time. Lower values on both axes are preferable.</figcaption></figure></article>
-  </section>
-  <section id="citation"><div class="citehead"><h2>Citation</h2><a download href="citation.bib">Download BibTeX</a></div><pre><code>@inproceedings{yu2026learning,
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="stNCE learns energy-based models by comparing samples across space and noise levels. A NeurIPS 2026 paper by Hanlin Yu and colleagues."
+    />
+    <title>stNCE · Learning Energy-Based Models from Stochastic Interpolants</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#top">st<span>NCE</span></a>
+      <nav aria-label="Page sections"><a href="#method">Method</a><a href="#results">Results</a><a href="#citation">Citation</a></nav>
+    </header>
+    <main id="top">
+      <section class="hero">
+        <div>
+          <p class="label">NeurIPS 2026</p>
+          <h1>Learning Energy-Based Models from Stochastic Interpolants using <em>Spatiotemporal Differences</em></h1>
+          <p class="authors">
+            Hanlin Yu<sup>1</sup>, RuiKang OuYang<sup>2</sup>, Partha Kaushik<sup>3</sup>, Arto Klami<sup>1</sup>, Michael U. Gutmann<sup>4</sup>,
+            Omar Chehab<sup>3</sup>
+          </p>
+          <p class="institutes">
+            <sup>1</sup> University of Helsinki · <sup>2</sup> University of Cambridge · <sup>3</sup> Carnegie Mellon University ·
+            <sup>4</sup> University of Edinburgh
+          </p>
+          <div class="actions">
+            <a class="primary" href="https://openreview.net/forum?id=QnHvCvmOn6">OpenReview</a><a href="https://arxiv.org/abs/2605.26850">arXiv</a
+            ><a href="https://github.com/ksnxr/stnce">Code on GitHub</a>
+          </div>
+        </div>
+        <figure class="cover">
+          <img src="figures/interpolant.svg" alt="Successive density curves show one noise peak gradually splitting into two data peaks." />
+          <figcaption>A stochastic interpolant from Gaussian noise to a two-mode data distribution.</figcaption>
+        </figure>
+      </section>
+      <section id="method">
+        <p class="label">Method</p>
+        <h2>Learning across space and time</h2>
+        <p class="lead">
+          A stochastic interpolant connects noise to data. At each time <i>t</i>, it defines a density over locations <i>x</i>. How should we train
+          Energy-based Models by constructing contrastive comparisons between two points?
+        </p>
+        <p>
+          Spatial comparisons hold the noise level fixed. When modes are far apart, local comparisons struggle to recover the global mode weights,
+          leading to pathologies under <i>multimodality</i>. Temporal comparisons hold the location fixed and vary the time, and suffer when the data
+          has high density in low density region of the noise, i.e. <i>support mismatch</i>. Spatiotemporal comparisons vary both location and noise
+          level in the same comparison and avoid both pathologies.
+        </p>
+        <p class="method-links">
+          <a href="#loss">Shared logistic loss</a><a href="#comparisons">Temporal, spatial, and spatiotemporal comparisons</a
+          ><a href="#kernels">Perturbation kernels</a><a href="#forward-reverse">Forward–reverse kernel</a>
+        </p>
+        <figure>
+          <a href="figures/teaser_last_annotated.svg"
+            ><img
+              loading="lazy"
+              src="figures/teaser_last_annotated.svg"
+              alt="Density diagram and three heatmaps. Temporal error grows with support mismatch, spatial error grows with mode separation, and spatiotemporal error stays near zero in this experiment."
+          /></a>
+          <figcaption>
+            In a one-dimensional Gaussian mixture, the two axes independently vary multimodality and support mismatch. Darker red indicates higher
+            estimation error.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="formulation" aria-labelledby="loss">
+        <h2 id="loss">A shared logistic loss</h2>
+        <p>
+          A clean sample
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>x</mi><mn>1</mn></msub
+                ><mo>∼</mo><msub><mi>p</mi><mn>1</mn></msub></mrow
+              ><annotation encoding="application/x-tex">x_1\sim p_1</annotation></semantics
+            ></math
+          >
+          and a noise sample
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>x</mi><mn>0</mn></msub
+                ><mo>∼</mo><msub><mi>p</mi><mn>0</mn></msub></mrow
+              ><annotation encoding="application/x-tex">x_0\sim p_0</annotation></semantics
+            ></math
+          >
+          give the stochastic interpolant
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>x</mi><mi>t</mi></msub
+                ><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo
+                ><msub><mi>x</mi><mn>0</mn></msub
+                ><mo>+</mo><mi>t</mi><msub><mi>x</mi><mn>1</mn></msub></mrow
+              ><annotation encoding="application/x-tex">x_t=(1-t)x_0+t x_1</annotation></semantics
+            ></math
+          >. Drawing
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math
+          >
+          from the chosen time density
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">p(t)</annotation></semantics
+            ></math
+          >
+          between 0 and 1 gives the joint density
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>d</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>p</mi
+                ><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><msub><mi>p</mi><mi>d</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">p_d(x,t)=p(t)p_d(x\mid t)</annotation></semantics
+            ></math
+          >. The Energy-based Model (EBM) represents the conditional density as
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo
+                ><mrow><mi mathvariant="normal">exp</mi><mo>&#8289;</mo></mrow
+                ><mspace width="-0.167em"></mspace
+                ><mrow
+                  ><mo stretchy="true" form="prefix">(</mo><mi>−</mi><msub><mi>E</mi><mi>θ</mi></msub
+                  ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                  ><mi mathvariant="normal">log</mi><msub><mi>Z</mi><mi>t</mi></msub
+                  ><mo stretchy="true" form="postfix">)</mo></mrow
+                ><mi>.</mi></mrow
+              ><annotation encoding="application/x-tex">p_\theta(x\mid t)=\exp\!\left(-E_\theta(x,t)-\log Z_t\right).</annotation></semantics
+            ></math
+          >
+        </p>
+        <p>
+          Class
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math
+          >
+          and class
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math
+          >
+          present a pair in reversed order against each other. With equally likely classes,
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mrow
+                  ><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi
+                  ><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow
+                ><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi
+                ><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\mathrm{sigmoid}(F(x))</annotation></semantics
+            ></math
+          >
+          estimates the probability that the observation belongs to class
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>A</mi><annotation encoding="application/x-tex">A</annotation></semantics></math
+          >. The population-optimal logit is
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msup><mi>F</mi><mo>*</mo></msup
+                ><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><msub><mi>p</mi><mi>A</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><msub><mi>p</mi><mi>B</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">F^*(u)=\log p_A(u)-\log p_B(u)</annotation></semantics
+            ></math
+          >.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub
+                      ><mi mathvariant="script">ℒ</mi
+                      ><mrow
+                        ><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi
+                        ><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi
+                        ><mi mathvariant="normal">c</mi></mrow
+                      ></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mi>−</mi
+                    ><msub
+                      ><mi mathvariant="double-struck">𝔼</mi
+                      ><mrow
+                        ><mi>u</mi><mo>∼</mo><msub><mi>p</mi><mi>A</mi></msub></mrow
+                      ></msub
+                    ><mrow
+                      ><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi
+                      ><mrow
+                        ><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi
+                        ><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow
+                      ><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi
+                      ><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo
+                      ><mo stretchy="true" form="postfix">]</mo></mrow
+                    ></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mspace width="1.0em"></mspace><mo>−</mo
+                    ><msub
+                      ><mi mathvariant="double-struck">𝔼</mi
+                      ><mrow
+                        ><mi>u</mi><mo>∼</mo><msub><mi>p</mi><mi>B</mi></msub></mrow
+                      ></msub
+                    ><mrow
+                      ><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi
+                      ><mrow
+                        ><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo
+                        ><mrow
+                          ><mi mathvariant="normal">s</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">m</mi
+                          ><mi mathvariant="normal">o</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">d</mi></mrow
+                        ><mo stretchy="false" form="prefix">(</mo><mi>F</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi
+                        ><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo
+                        ><mo stretchy="true" form="postfix">)</mo></mrow
+                      ><mo stretchy="true" form="postfix">]</mo></mrow
+                    ><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} \mathcal{L}_{\mathrm{logistic}}(F) &amp;=-\mathbb{E}_{u\sim p_A}\left[\log\mathrm{sigmoid}(F(u))\right]\\
+                &amp;\quad-\mathbb{E}_{u\sim p_B}\left[\log\left(1-\mathrm{sigmoid}(F(u))\right)\right]. \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          For each method below, substitute its model logit
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><msub><mi>F</mi><mi>θ</mi></msub
+              ><annotation encoding="application/x-tex">F_\theta</annotation></semantics
+            ></math
+          >
+          for
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math
+          >
+          and minimize
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub
+                  ><mi mathvariant="script">ℒ</mi
+                  ><mrow
+                    ><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi
+                    ><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">i</mi
+                    ><mi mathvariant="normal">c</mi></mrow
+                  ></msub
+                ><mo stretchy="false" form="prefix">(</mo><msub><mi>F</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\mathcal{L}_{\mathrm{logistic}}(F_\theta)</annotation></semantics
+            ></math
+          >
+          over
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math
+          >.
+        </p>
+      </section>
+      <section class="formulation" aria-labelledby="comparisons">
+        <h2 id="comparisons">Temporal, spatial, and joint comparisons</h2>
+        <h3 id="tnce-changes-time-at-a-fixed-location">tNCE changes time at a fixed location</h3>
+        <p>
+          For tNCE,
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mi>u</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">u=(x,t,t&#39;)</annotation></semantics
+            ></math
+          >. Draw
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">(x,t)</annotation></semantics
+            ></math
+          >
+          from the interpolant and propose
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><msup><mi>t</mi><mo>′</mo></msup
+              ><annotation encoding="application/x-tex">t&#39;</annotation></semantics
+            ></math
+          >
+          given
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math
+          >. Swapping the times keeps the position
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math
+          >
+          fixed.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>A</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo
+                    ><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>B</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} p_A(x,t,t&#39;) &amp;= p_d(x,t)\,p_n(t&#39;\mid t),\\ p_B(x,t,t&#39;) &amp;= p_d(x,t&#39;)\,p_n(t\mid t&#39;).
+                \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>F</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>,</mo
+                    ><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} F_\theta(x,t,t&#39;) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x\mid t&#39;)+c(t,t&#39;),\\ c(t,t&#39;) &amp;= \log
+                p(t)+\log p_n(t&#39;\mid t)-\log p(t&#39;)-\log p_n(t\mid t&#39;). \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          Both normalizers enter the comparison through
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mi>−</mi><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">-\log Z(t)+\log Z(t&#39;)</annotation></semantics
+            ></math
+          >. If
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math
+          >
+          is common at one time and rare at the other, few samples inform the density ratio there.
+        </p>
+        <h3 id="tcnce-changes-location-at-a-fixed-time">tCNCE changes location at a fixed time</h3>
+        <p>
+          For tCNCE,
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mi>u</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">u=(x,x&#39;,t)</annotation></semantics
+            ></math
+          >. Draw
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">(x,t)</annotation></semantics
+            ></math
+          >
+          from the interpolant and propose
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><msup><mi>x</mi><mo>′</mo></msup
+              ><annotation encoding="application/x-tex">x&#39;</annotation></semantics
+            ></math
+          >
+          given
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>x</mi><annotation encoding="application/x-tex">x</annotation></semantics></math
+          >. Swapping the locations and keeping the sampled time fixed:
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>A</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo
+                    ><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>B</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} p_A(x,x&#39;,t) &amp;= p_d(x,t)\,p_n(x&#39;\mid x),\\ p_B(x,x&#39;,t) &amp;= p_d(x&#39;,t)\,p_n(x\mid x&#39;).
+                \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          The shared normalizer
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">Z(t)</annotation></semantics
+            ></math
+          >
+          cancels from the logit.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>F</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo
+                    ><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} F_\theta(x,x&#39;,t) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x&#39;\mid t)+c(x,x&#39;),\\ c(x,x&#39;) &amp;= \log
+                p_n(x&#39;\mid x)-\log p_n(x\mid x&#39;). \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          At a given time, local comparisons within well-separated modes can reveal each mode’s shape while providing little information about their
+          relative masses.
+        </p>
+        <h3 id="joint-comparison">stNCE compares both endpoints</h3>
+        <p>
+          stNCE asks which endpoint came from the interpolant. Draw
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">(x,t)</annotation></semantics
+            ></math
+          >
+          from
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>d</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">p_d(x,t)</annotation></semantics
+            ></math
+          >, then perturb it to
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">(x&#39;,t&#39;)</annotation></semantics
+            ></math
+          >
+          using
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">p_n(x&#39;,t&#39;\mid x,t)</annotation></semantics
+            ></math
+          >.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>A</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo
+                    ><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>p</mi><mi>B</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><msub><mi>p</mi><mi>d</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} p_A(x,t,x&#39;,t&#39;) &amp;= p_d(x,t)\,p_n(x&#39;,t&#39;\mid x,t),\\ p_B(x,t,x&#39;,t&#39;) &amp;=
+                p_d(x&#39;,t&#39;)\,p_n(x,t\mid x&#39;,t&#39;). \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          For a fixed kernel,
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math
+          >
+          collects the known time prior and perturbation terms:
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mtable
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><msub><mi>F</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>θ</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>∣</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo
+                    ><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"
+                    ><mi>c</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><msub><mi>p</mi><mi>n</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>∣</mo><msup><mi>x</mi><mo>′</mo></msup
+                    ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo></mtd
+                  ></mtr
+                ><mtr
+                  ><mtd columnalign="right" style="text-align: right; padding-right: 0"></mtd
+                  ><mtd columnalign="left" style="text-align: left; padding-left: 0"
+                    ><mspace width="1.0em"></mspace><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>−</mo
+                    ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                    ><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mtd
+                  ></mtr
+                ></mtable
+              ><annotation encoding="application/x-tex"
+                >\begin{aligned} F_\theta(x,t,x&#39;,t&#39;) &amp;= \log p_\theta(x\mid t)-\log p_\theta(x&#39;\mid t&#39;)+c(x,t,x&#39;,t&#39;),\\
+                c(x,t,x&#39;,t&#39;) &amp;= \log p_n(x&#39;,t&#39;\mid x,t)-\log p_n(x,t\mid x&#39;,t&#39;)\\ &amp;\quad +\log p(t)-\log p(t&#39;).
+                \end{aligned}</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          The log-density ratio contains both
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>E</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mo>−</mo><msub><mi>E</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">E_\theta(x&#39;,t&#39;)-E_\theta(x,t)</annotation></semantics
+            ></math
+          >
+          and
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><mi>Z</mi><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\log Z(t&#39;)-\log Z(t)</annotation></semantics
+            ></math
+          >.
+        </p>
+        <figure>
+          <a href="figures/illustration_of_limitations.svg"
+            ><img
+              loading="lazy"
+              src="figures/illustration_of_limitations.svg"
+              alt="Temporal and spatial comparisons necessarily traverse low density region under certain scenarios. Spatiotemporal comparisons could instead remain within high density region."
+          /></a>
+          <figcaption>
+            Temporal and spatial comparisons necessarily traverse low density region under certain scenarios. Spatiotemporal comparisons could instead
+            remain within high density region.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="formulation" aria-labelledby="kernels">
+        <h2 id="kernels">Choosing a perturbation kernel</h2>
+        <p>
+          The kernel determines which energy differences the classifier sees. A meaningful proposal places the second endpoint in a region with high
+          density at the proposed time.
+        </p>
+        <h3 id="mixture-stnce-m">Mixture (stNCE-m)</h3>
+        <p>
+          Change time as in tNCE or change location as in tCNCE with equal probabilities.
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>δ</mi><mi>x</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\delta_x(x&#39;)</annotation></semantics
+            ></math
+          >
+          keeps the location fixed and
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>δ</mi><mi>t</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\delta_t(t&#39;)</annotation></semantics
+            ></math
+          >
+          keeps time fixed.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo
+                ><mstyle displaystyle="false"
+                  ><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle
+                ><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>x</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mo>+</mo
+                ><mstyle displaystyle="false"
+                  ><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle
+                ><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>δ</mi><mi>t</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex"
+                >p_n(x&#39;,t&#39;\mid x,t) = \tfrac{1}{2}\, p_n(t&#39;\mid t)\,\delta_{x}(x&#39;) + \tfrac{1}{2}\, p_n(x&#39;\mid
+                x)\,\delta_{t}(t&#39;)</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <h3 id="white-noise-stnce-w">White noise (stNCE-w)</h3>
+        <p>
+          Perturb the location with isotropic Gaussian noise of standard deviation
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math
+          >
+          and draw a new time based on Gaussian perturbation.
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup
+                ><mi>I</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>p</mi
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="prefix">|</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex"
+                >p_n(x&#39;,t&#39;\mid x,t) = \mathcal{N}(x&#39;\mid x,\sigma^2 I)\,p(t&#39;|t)</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <h3 id="forward-reverse">Forward–reverse (stNCE-o and stNCE-s)</h3>
+        <p>
+          First propose
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><msup><mi>t</mi><mo>′</mo></msup
+              ><annotation encoding="application/x-tex">t&#39;</annotation></semantics
+            ></math
+          >, then choose the spatial transition according to the direction of the time step:
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="prefix">|</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex"
+                >p_n(x&#39;,t&#39;\mid x,t) = p_n(x&#39;\mid x,t,t&#39;)\,p_{n}(t&#39;|t)</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <figure class="kernel-figure">
+          <img
+            loading="lazy"
+            src="figures/illustration_of_conditional_noise.svg"
+            alt="A Gaussian perturbation leaves the blue high-density band. A forward–reverse step follows the band to the proposed time."
+          />
+          <figcaption>
+            The blue band marks high density in space and time. The forward–reverse kernel uses the interpolant dynamics to guide the proposal along
+            it.
+          </figcaption>
+        </figure>
+        <p>
+          <strong
+            >Noising,
+            <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+              ><semantics
+                ><mrow
+                  ><msup><mi>t</mi><mo>′</mo></msup
+                  ><mo>&lt;</mo><mi>t</mi></mrow
+                ><annotation encoding="application/x-tex">t&#39;&lt;t</annotation></semantics
+              ></math
+            >.</strong
+          >
+          For the linear interpolant with standard Gaussian reference noise, moving toward
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow
+              ><annotation encoding="application/x-tex">t=0</annotation></semantics
+            ></math
+          >
+          scales the current sample and adds Gaussian noise. For
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi>t</mi><mo>&gt;</mo><mn>0</mn></mrow
+              ><annotation encoding="application/x-tex">t&gt;0</annotation></semantics
+            ></math
+          >
+          the exact transition is
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi><mspace width="-0.167em"></mspace
+                ><mrow
+                  ><mo stretchy="true" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                  ><mo stretchy="true" form="infix">|</mo><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                  ><mi>/</mi><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>x</mi><mo>,</mo><mspace width="0.278em"></mspace
+                  ><mrow
+                    ><mo stretchy="true" form="prefix">(</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo
+                    ><msup><mi>t</mi><mo>′</mo></msup
+                    ><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup
+                    ><mo>−</mo><msup><mi>t</mi><mo>′</mo></msup
+                    ><msup><mi></mi><mn>2</mn></msup
+                    ><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi
+                    ><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup
+                    ><mi>/</mi><msup><mi>t</mi><mn>2</mn></msup
+                    ><mo stretchy="true" form="postfix">)</mo></mrow
+                  ><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow
+                ></mrow
+              ><annotation encoding="application/x-tex"
+                >p_n(x&#39;\mid x,t,t&#39;) = \mathcal{N}\!\left(x&#39;\middle| (t&#39;/t)x,\; \left((1-t&#39;)^2 - t&#39;^2(1-t)^2/t^2\right) I
+                \right)</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          <strong
+            >Denoising,
+            <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+              ><semantics
+                ><mrow
+                  ><msup><mi>t</mi><mo>′</mo></msup
+                  ><mo>&gt;</mo><mi>t</mi></mrow
+                ><annotation encoding="application/x-tex">t&#39;&gt;t</annotation></semantics
+              ></math
+            >.</strong
+          >
+          Moving toward the clean-data endpoint requires the reverse transition. Its ideal form is the Bayes inverse of noising. For
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi>t</mi><mo>&gt;</mo><mn>0</mn></mrow
+              ><annotation encoding="application/x-tex">t&gt;0</annotation></semantics
+            ></math
+          >, we use the following Gaussian approximation for the reverse SDE, whose mean depends on the space score
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>∇</mi><mi>x</mi></msub
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><msub><mi>p</mi><mi>t</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\nabla_x\log p_t(x)</annotation></semantics
+            ></math
+          >:
+        </p>
+        <p>
+          <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>p</mi><mi>n</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                ><mo>∣</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>,</mo><msup><mi>t</mi><mo>′</mo></msup
+                ><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi mathvariant="script">𝒩</mi><mspace width="-0.167em"></mspace
+                ><mrow
+                  ><mo stretchy="true" form="prefix">(</mo><msup><mi>x</mi><mo>′</mo></msup
+                  ><mo stretchy="true" form="infix">|</mo><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                  ><mi>/</mi><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mi>x</mi><mo>+</mo
+                  ><mstyle displaystyle="false"
+                    ><mfrac
+                      ><mrow
+                        ><mn>2</mn><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo
+                        ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                        ><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+                      ><mi>t</mi></mfrac
+                    ></mstyle
+                  ><mspace width="0.167em"></mspace><mtext mathvariant="normal">sg</mtext
+                  ><mrow
+                    ><mo stretchy="true" form="prefix">(</mo><msub><mi>∇</mi><mi>x</mi></msub
+                    ><mi mathvariant="normal">log</mi><msub><mi>p</mi><mi>t</mi></msub
+                    ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo
+                    ><mo stretchy="true" form="postfix">)</mo></mrow
+                  ><mo>,</mo><mspace width="0.278em"></mspace
+                  ><mstyle displaystyle="false"
+                    ><mfrac
+                      ><mrow
+                        ><mo stretchy="false" form="prefix">(</mo><msup><mi>t</mi><mo>′</mo></msup
+                        ><mo>−</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mi>t</mi><mo>+</mo
+                        ><msup><mi>t</mi><mo>′</mo></msup
+                        ><mo>−</mo><mn>2</mn><mi>t</mi><msup><mi>t</mi><mo>′</mo></msup
+                        ><mo stretchy="false" form="postfix">)</mo></mrow
+                      ><msup><mi>t</mi><mn>2</mn></msup></mfrac
+                    ></mstyle
+                  ><mi>I</mi><mo stretchy="true" form="postfix">)</mo></mrow
+                ></mrow
+              ><annotation encoding="application/x-tex"
+                >p_n(x&#39;\mid x,t,t&#39;) = \mathcal{N}\!\left( x&#39;\middle| (t&#39;/t)x + \tfrac{2(1-t)(t&#39;-t)}{t}\,\text{sg}\left(\nabla_x
+                \log p_t(x)\right),\; \tfrac{(t&#39;-t)(t+t&#39;-2tt&#39;)}{t^2} I \right)</annotation
+              ></semantics
+            ></math
+          >
+        </p>
+        <p>
+          <strong>Oracle and self scores.</strong> stNCE-o uses the true space score when available. stNCE-s uses the current model’s score
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow
+                ><msub><mi>∇</mi><mi>x</mi></msub
+                ><mrow><mi mathvariant="normal">log</mi><mo>&#8289;</mo></mrow
+                ><msub><mi>p</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>−</mi
+                ><msub><mi>∇</mi><mi>x</mi></msub
+                ><msub><mi>E</mi><mi>θ</mi></msub
+                ><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo stretchy="false" form="postfix">)</mo></mrow
+              ><annotation encoding="application/x-tex">\nabla_x\log p_\theta(x\mid t)=-\nabla_x E_\theta(x,t)</annotation></semantics
+            ></math
+          >. The stop-gradient operator
+          <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"
+            ><semantics
+              ><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">g</mi></mrow
+              ><annotation encoding="application/x-tex">\mathrm{sg}</annotation></semantics
+            ></math
+          >
+          holds the score in the kernel fixed during each gradient update. The next step uses the refreshed score.
+        </p>
+      </section>
+      <section id="results">
+        <p class="label">Experiments</p>
+        <h2>Image likelihoods and molecular energies</h2>
+        <article id="mnist-gaussian-mixture" aria-labelledby="mnist-mixture-heading">
+          <div>
+            <h3 id="mnist-mixture-heading">MNIST Gaussian mixture</h3>
+            <p>
+              How accurately can a model learn the density of well-separated digits? Each of 100 MNIST images, ten per digit class, is the center of a
+              Gaussian in 784 dimensions. The mixture’s exact density is known, so we can measure the error in the model’s log density directly.
+            </p>
+            <p>
+              Switching from white noise to the <a href="#forward-reverse">forward–reverse kernel</a> reduces mean LogMSE from
+              <strong>9.96 to 4.80</strong>. Dual score matching achieves the lowest error among the methods shown, while stNCE-s takes about half as
+              long per training step.
+            </p>
+          </div>
+          <table class="mixture-results">
+            <caption>
+              LogMSE is the log of the mean squared error between model and true log densities, reported as mean ± standard deviation. Time is the
+              average time per training step. Lower is better for both.
+              <a href="https://arxiv.org/abs/2605.26850">Full results in the paper</a
+              >.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Method</th>
+                <th scope="col">LogMSE</th>
+                <th scope="col">Seconds/step</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">tNCE (temporal)</th>
+                <td>12.37 ± 0.02</td>
+                <td>0.39</td>
+              </tr>
+              <tr>
+                <th scope="row">CTSM (temporal)</th>
+                <td>12.44 ± 0.45</td>
+                <td>0.68</td>
+              </tr>
+              <tr>
+                <th scope="row">tCNCE (spatial)</th>
+                <td>12.28 ± 0.26</td>
+                <td>0.40</td>
+              </tr>
+              <tr>
+                <th scope="row">DSM (spatial)</th>
+                <td>16.39 ± 0.07</td>
+                <td>0.70</td>
+              </tr>
+              <tr>
+                <th scope="row">stNCE-w (white noise)</th>
+                <td>9.96 ± 0.05</td>
+                <td>0.40</td>
+              </tr>
+              <tr>
+                <th scope="row">stNCE-s (forward–reverse)</th>
+                <td>4.80 ± 0.10</td>
+                <td><strong>0.36</strong></td>
+              </tr>
+              <tr>
+                <th scope="row">Dual score matching</th>
+                <td><strong>3.73 ± 0.18</strong></td>
+                <td>0.70</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+        <article>
+          <div>
+            <h3>ImageNet64</h3>
+            <p>
+              Combining stNCE-s with denoising score matching (DSM) gives an estimated test negative log likelihood of
+              <strong>2.94 bits per dimension</strong> in a single network evaluation. Dual score matching gives 3.36.
+            </p>
+          </div>
+          <figure>
+            <a href="figures/imagenet64_extreme_log_densities.png"
+              ><img
+                loading="lazy"
+                src="figures/imagenet64_extreme_log_densities.png"
+                alt="Two grids of ImageNet64 test images ranked by model density."
+            /></a>
+            <figcaption>Test images assigned the highest densities (left) and lowest densities (right).</figcaption>
+          </figure>
+        </article>
+        <article>
+          <div>
+            <h3>Molecular configurations</h3>
+            <p>
+              We compare samples from learned energy models with equilibrium configurations of Alanine Dipeptide (ALDP) and Chignolin. On Chignolin,
+              stNCE-s with DSM achieves comparable Potential-of-Mean-Force (PMF) accuracy to FPE at <strong>roughly half the training cost</strong>.
+            </p>
+          </div>
+          <figure>
+            <a href="figures/pmf_vs_runtime.svg"
+              ><img
+                loading="lazy"
+                src="figures/pmf_vs_runtime.svg"
+                alt="Plots of potential-of-mean-force error versus training time for diffusion and Langevin sampling on two molecular datasets."
+            /></a>
+            <figcaption>Potential-of-Mean-Force (PMF) error versus training time. Lower values on both axes are preferable.</figcaption>
+          </figure>
+        </article>
+      </section>
+      <section id="citation">
+        <div class="citehead">
+          <h2>Citation</h2>
+          <a download href="citation.bib">Download BibTeX</a>
+        </div>
+        <pre><code>@inproceedings{yu2026learning,
   title = {Learning {Energy}-{Based} {Models} from {Stochastic} {Interpolants} using {Spatiotemporal} {Differences}},
   url = {https://openreview.net/forum?id=QnHvCvmOn6},
   booktitle = {The {Fortieth} {Annual} {Conference} on {Neural} {Information} {Processing} {Systems}},
   author = {Yu, Hanlin and OuYang, RuiKang and Kaushik, Partha and Klami, Arto and Gutmann, Michael U. and Chehab, Omar},
   year = {2026},
-}</code></pre></section>
-</main>
-</body>
+}</code></pre>
+      </section>
+    </main>
+  </body>
 </html>
